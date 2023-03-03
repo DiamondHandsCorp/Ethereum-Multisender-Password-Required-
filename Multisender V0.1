@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: MIT-2.0
+// Coded by: Sean Pepper
+pragma solidity ^0.8.0;
+
+contract TokenMultiSend {
+    address public owner;
+    mapping(bytes32 => bool) public usedHashes;
+
+    constructor() {
+        owner = msg.sender;
+    }
+
+    /**
+     * @dev Allows the owner of the contract to withdraw any ERC20 token
+     * @param _token Address of the ERC20 token
+     * @param _amount Amount of tokens to withdraw
+     */
+    function withdrawToken(address _token, uint256 _amount) public {
+        require(msg.sender == owner, "Only contract owner can withdraw tokens");
+        IERC20 token = IERC20(_token);
+        require(token.transfer(owner, _amount), "Transfer failed");
+    }
+
+    /**
+     * @dev Sends multiple ERC20 tokens to multiple addresses in one transaction
+     * @param _tokenAddresses Array of ERC20 token addresses to send
+     * @param _addresses Array of recipient addresses
+     * @param _amounts Array of token amounts to send to each recipient
+     * @param _nonce Unique identifier for the transaction to prevent duplicate transactions
+     * @param _password Password to confirm transaction
+     */
+    function multiSend(address[] memory _tokenAddresses, address[] memory _addresses, uint256[] memory _amounts, uint256 _nonce, string memory _password) public {
+        require(keccak256(bytes(_password)) == keccak256(bytes("password123")), "Incorrect password");
+        require(_tokenAddresses.length == _addresses.length && _addresses.length == _amounts.length, "Invalid arrays");
+        require(!usedHashes[keccak256(abi.encodePacked(_nonce))], "Transaction already processed");
+
+        for (uint256 i = 0; i < _tokenAddresses.length; i++) {
+            IERC20 token = IERC20(_tokenAddresses[i]);
+            require(token.transferFrom(msg.sender, _addresses[i], _amounts[i]), "Transfer failed");
+        }
+
+        usedHashes[keccak256(abi.encodePacked(_nonce))] = true;
+    }
+}
+
+interface IERC20 {
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+}
